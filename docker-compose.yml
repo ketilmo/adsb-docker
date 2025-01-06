@@ -2,6 +2,7 @@ version: '2.4'
 volumes:
   settings:
   radarbox:
+  tar1090:
 services:
   kiosk:
     restart: unless-stopped
@@ -255,6 +256,33 @@ services:
     labels:
       io.balena.features.balena-api: '1'
       io.balena.features.supervisor-api: '1'
+  tar1090:
+    depends_on:
+      - dump1090-fa
+      - adsb-exchange
+    build: ./tar1090
+    image: tar1090
+    restart: unless-stopped
+    environment:
+      - BEASTHOST=dump1090-fa
+      - MLATHOST=adsb-exchange
+      - MLATPORT=30157
+      - LAT=
+      - LON=
+    volumes:
+      - tar1090:/var/globe_history
+      - tar1090:/var/timelapse1090
+      - tar1090:/var/lib/collectd
+      - tar1090:/var/lib/collectd/rrd
+      - tar1090:/var/log
+    ports:
+      - "8078:80"
+    labels:
+      - "io.balena.features.supervisor-api=1"
+      - "io.balena.features.procfs=1"
+      - "traefik.enable=true"
+      - "traefik.http.routers.tar1090.rule=PathPrefix(`/tar1090`)"
+      - "traefik.http.routers.tar1090-a.rule=PathPrefix(`/graphs1090`)"
 # Optional: Uncomment to enable custom mlat server.
 #  mlat-client:
 #    depends_on:
@@ -270,6 +298,3 @@ services:
 #      - MLAT_SERVER=
 #    labels:
 #      io.balena.features.supervisor-api: '1'
-
-
-    

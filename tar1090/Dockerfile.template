@@ -1,0 +1,23 @@
+FROM ghcr.io/sdr-enthusiasts/docker-tar1090:latest AS base
+LABEL maintainer="https://github.com/ketilmo"
+
+COPY 00-startup-checks /etc/s6-overlay/startup.d
+
+RUN rm -f /etc/nginx/nginx-tar1090-webroot.conf && \
+    wget -O /etc/nginx/nginx-tar1090.conf https://raw.githubusercontent.com/wiedehopf/tar1090/refs/heads/master/nginx.conf && \
+    mv /usr/local/share/tar1090/html-webroot /usr/local/share/tar1090/html && \
+    html_path=/usr/local/share/tar1090/html && \
+    srcdir=/run/readsb && \
+    service=tar1090 && \
+    instance=tar1090 && \
+    sed -i.orig -e "s?SOURCE_DIR?$srcdir?g" -e "s?SERVICE?${service}?g" \
+        -e "s?INSTANCE?$instance?g" -e "s?HTMLPATH?$html_path?g" /etc/nginx/nginx-tar1090.conf && \
+    sed -i -e 's/html-webroot/html/g' /etc/s6-overlay/startup.d/04-tar1090-configure && \
+    sed -i -e 's?href="graphs1090/"?href="../graphs1090/"?g' /etc/s6-overlay/startup.d/04-tar1090-configure && \
+    sed -i -e 's/html-webroot/html/g' /etc/s6-overlay/startup.d/06-range-outline && \
+    sed -i -e 's/webroot/tar1090/g' /etc/s6-overlay/scripts/tar1090-update && \
+    sed -i -e 's/nginx-tar1090-webroot/nginx-tar1090/g' /etc/nginx.tar1090/sites-enabled/tar1090 && \
+    sed -i -e 's/nginx-tar1090-webroot/nginx-tar1090/g' /etc/nginx/sites-enabled/tar1090 && \
+    sed -i -e 's/nginx-tar1090-webroot/nginx-tar1090/g' /etc/s6-overlay/startup.d/07-nginx-configure
+
+HEALTHCHECK NONE
