@@ -14,7 +14,7 @@ ENV DUMP1090_ADAPTIVE_MAX_GAIN=""
 ENV DUMP1090_SLOW_CPU=""
 ENV REBOOT_DEVICE_ON_SERVICE_EXIT=""
 
-ARG PERM_INSTALL="tini lighttpd gettext-base libusb-1.0-0 libbladerf2 libhackrf0 liblimesuite22.09-1 librtlsdr0 rtl-sdr libsoapysdr0.8 libncurses6 libboost-system-dev libboost-program-options-dev libboost-regex-dev"
+ARG PERM_INSTALL="tini lighttpd gettext-base libusb-1.0-0 libbladerf2 libhackrf0 liblimesuite22.09-1 libsoapysdr0.8 libncurses6 libboost-system-dev libboost-program-options-dev libboost-regex-dev"
 
 RUN apt update && \
 	apt install -y $PERM_INSTALL && \
@@ -23,6 +23,8 @@ RUN apt update && \
 
 FROM base AS buildstep
 
+# renovate: datasource=github-tags depName=osmocom/rtl-sdr versioning=loose
+ARG RTLSDR_VERSION=v2.0.2
 # renovate: datasource=github-tags depName=flightaware/dump1090 versioning=loose
 ARG DUMP1090_VERSION=v9.0
 # renovate: datasource=github-tags depName=flightaware/beast-splitter versioning=loose
@@ -34,15 +36,15 @@ RUN apt update && \
 
 WORKDIR /tmp
 
-#RUN git clone https://github.com/steve-m/librtlsdr && \
-#	cd librtlsdr && \
-#	mkdir build && cd build && cmake ../ && make && make install && ldconfig && cd .. && \
-#	dpkg-buildpackage -b && cd .. && \
-#	dpkg -i librtlsdr0_*.deb && \
-#	dpkg -i librtlsdr-dev_*.deb && \
-#	apt-mark hold librtlsdr0 librtlsdr-dev  
-
-#WORKDIR /tmp
+RUN git clone --branch master --depth 1 --single-branch https://github.com/osmocom/rtl-sdr.git && \
+	cd rtl-sdr && \
+	git checkout tags/${RTLSDR_VERSION} && \
+	mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release -DDETACH_KERNEL_DRIVER=ON -DINSTALL_UDEV_RULES=ON ../ && make && make install && ldconfig && cd .. && \
+	dpkg-buildpackage -b && cd .. && \
+	dpkg -i librtlsdr0_*.deb && \
+	dpkg -i librtlsdr-dev_*.deb && \
+	dpkg -i rtl-sdr_*.deb && \
+	apt-mark hold librtlsdr0 librtlsdr-dev rtl-sdr
 
 RUN git clone https://github.com/flightaware/dump1090 && \
 	cd dump1090 && \
@@ -58,6 +60,8 @@ RUN git clone https://github.com/flightaware/beast-splitter && \
 
 FROM base AS release
 
+COPY --from=buildstep /tmp/librtlsdr0_*.deb /tmp/
+COPY --from=buildstep /tmp/rtl-sdr_*.deb /tmp/
 COPY --from=buildstep /tmp/dump1090-fa_*.deb /tmp/
 COPY --from=buildstep /tmp/beast-splitter_*.deb /tmp/
 COPY start.sh /
@@ -66,10 +70,10 @@ COPY showstrongmessages.sh /
 
 WORKDIR /tmp
 
-#RUN dpkg -i librtlsdr0_*.deb rtl-sdr_*.deb && \
-# 	 apt-mark hold librtlsdr0 && \
-
-RUN dpkg -i dump1090-fa_*.deb && \
+RUN 	dpkg -i librtlsdr0_*.deb && \
+	dpkg -i rtl-sdr_*.deb && \
+	apt-mark hold librtlsdr0 rtl-sdr && \
+	dpkg -i dump1090-fa_*.deb && \
         ln -s /bin/udevadm /sbin/udevadm && \
         dpkg -i beast-splitter_*.deb && \
 	rm -rf /tmp/* && \
