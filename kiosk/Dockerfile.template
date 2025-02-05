@@ -1,5 +1,5 @@
 # renovate: datasource=github-tags depName=balena-io-experimental/browser versioning=loose
-ARG BROWSER_VERSION=2.9.0
+ARG BROWSER_VERSION=2.10.0
 FROM bh.cr/balenalabs/browser-%%BALENA_ARCH%%/$BROWSER_VERSION AS base
 
 RUN install_packages cec-utils tini
